@@ -113,12 +113,12 @@ class BaselineVSLAMLab:
                     comment_queue.put(f"Memory threshold exceeded  {ram_used:0.1f} GB / {ram_max:0.1f} GB > {100 * MAX_RAM_PERC:0.2f} %. Process killed.")  
                     break
 
-                if swap_perc > MAX_SWAP_PERC:
-                    print_msg(SCRIPT_LABEL, f"Filling swap memory  {swap_used:0.1f} GB / {swap_max:0.1f} GB > {100 * MAX_SWAP_PERC:0.2f}",'error')
-                    success_flag[0] = False
-                    self.kill_process(process)
-                    comment_queue.put(f"Filling swap memory  {swap_used:0.1f} GB / {swap_max:0.1f} GB > {100 * MAX_SWAP_PERC:0.2f} %. Process killed.")  
-                    break
+                # if swap_perc > MAX_SWAP_PERC:
+                #     print_msg(SCRIPT_LABEL, f"Filling swap memory  {swap_used:0.1f} GB / {swap_max:0.1f} GB > {100 * MAX_SWAP_PERC:0.2f}",'error')
+                #     success_flag[0] = False
+                #     self.kill_process(process)
+                #     comment_queue.put(f"Filling swap memory  {swap_used:0.1f} GB / {swap_max:0.1f} GB > {100 * MAX_SWAP_PERC:0.2f} %. Process killed.")  
+                #     break
                     #print(f"\n{SCRIPT_LABEL} {Fore.RED} Cleaning swap memory... {Style.RESET_ALL}")
                     #subprocess.run("pixi run --frozen -e default clean_swap", shell=True)
 
