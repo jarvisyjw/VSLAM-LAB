@@ -28,20 +28,24 @@ activate_env = {cmd = "pixi run -e vslamlab python utilities.py activate_env"}
 
 clean_experiment = {cmd = "pixi run -e vslamlab python Evaluate/clean_experiment.py"}
 clean_swap = {cmd = "sudo /sbin/swapoff -a && sudo /sbin/swapon -a"}
-kill_all = {cmd = "pkill -f -e 'droidslam|dpvo|orbslam2|mast3rslam|monogs|vslamlab'"} 
+kill_all = {cmd = "pkill -f -e 'droidslam|dpvo|orbslam2|mast3rslam|monogs|vslamlab' && sudo /sbin/swapoff -a && sudo /sbin/swapon -a"} 
 
 # environments begin
 [environments]
 vslamlab = {features = ["vslamlab"], no-default-feature = true}
 
 droidslam = {features = ["droidslam"], no-default-feature = true}
+#droidslam-dev = {features = ["droidslam-dev"], no-default-feature = true}
 mast3rslam = {features = ["mast3rslam"], no-default-feature = true}
+mast3rslam-dev = {features = ["mast3rslam-dev"], no-default-feature = true}
+
 orbslam2 = {features = ["orbslam2"], no-default-feature = true}
 dpvo = {features = ["dpvo"], no-default-feature = true}
 monogs = {features = ["monogs"], no-default-feature = true}
 
-#colmap = {features = ["colmap"], no-default-feature = true, solve-group = "colmap"}
-#glomap = {features = ["glomap"], no-default-feature = true, solve-group = "colmap"}
+colmap = {features = ["colmap"], no-default-feature = true, solve-group = "colmap"}
+glomap = {features = ["glomap"], no-default-feature = true, solve-group = "colmap"}
+
 #monodataset = {features = ["monodataset"], no-default-feature = true}
 #dust3r = {features = ["dust3r"], no-default-feature = true}
 #spann3r = {features = ["spann3r"], no-default-feature = true}
@@ -90,20 +94,66 @@ evo = "*"
 ########################################################################################################################
 # droidslam begin
 [feature.droidslam]
-channels = ["https://fast.prefix.dev/conda-forge"]
+channels = ["https://fast.prefix.dev/conda-forge", "fontan"]
 platforms = ["linux-64"]
 
 [feature.droidslam.system-requirements]
 cuda = "12.0"
 
 [feature.droidslam.tasks]
-git-clone = {cmd = "git-clone.sh VSLAM-LAB DROID-SLAM Baselines"}
-download-weights = {cmd = "python vslamlab_droidslam_download_weights.py", cwd = "Baselines/DROID-SLAM"}
-install = {cmd = "python setup.py install", cwd = "Baselines/DROID-SLAM", depends-on = ["download-weights"]}
-execute_mono = {cmd = 'python vslamlab_droidslam_mono.py',  cwd = 'Baselines/DROID-SLAM'}
-execute_rgbd = {cmd = 'python vslamlab_droidslam_rgbd.py',  cwd = 'Baselines/DROID-SLAM'}
+execute_mono = {cmd = 'vslamlab_droidslam_mono'}
 
 [feature.droidslam.dependencies]
+droidslam="*"
+lietorch = {version = "*", channel = "fontan"}  
+# droidslam end
+
+# ########################################################################################################################
+# ########################################################################################################################
+# mast3rslam begin
+[feature.mast3rslam]
+platforms = ["linux-64"]
+channels = ["https://fast.prefix.dev/conda-forge","fontan"]
+
+[feature.mast3rslam.system-requirements]
+cuda = "12.0"
+
+[feature.mast3rslam.tasks]
+execute = {cmd = 'vslamlab_mast3rslam_mono'}
+
+[feature.mast3rslam.dependencies]
+mast3rslam = {version = "*", channel = "fontan"}
+lietorch = {version = "*", channel = "fontan"}  
+pyglfw = {version = "=2.9.0", channel = "fontan"}  
+moderngl-window= {version = "=2.4.6", channel = "fontan"}
+faiss-cpu= {version = "=1.11.0", channel = "fontan"}
+roma= {version = "*", channel = "fontan"}
+matplotlib = "*"
+trimesh="*"
+# mast3rslam end
+
+########################################################################################################################
+########################################################################################################################
+# dpvo begin
+[feature.dpvo]
+#channels = ["pyg", "pytorch", "nvidia/label/cuda-12.1.0", "conda-forge", "main", "r", "msys2"]
+channels = ["https://fast.prefix.dev/conda-forge", "fontan"]
+
+platforms = ["linux-64"]
+
+[feature.dpvo.system-requirements]
+cuda = "12.0"
+
+[feature.dpvo.tasks]
+git-clone = {cmd = "git-clone.sh VSLAM-LAB DPVO Baselines"}
+download-models-and-data = {cmd = "./download_models_and_data.sh", cwd = "Baselines/DPVO"}
+get_eigen = {cmd = "wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip && unzip eigen-3.4.0.zip -d thirdparty", cwd = "Baselines/DPVO"}
+build_pangolin = {cmd = "mkdir -p build && cd build && cmake .. && make -j12", cwd = "Baselines/DPVO/Pangolin"}
+install_DPViewer = {cmd = "pip install .", cwd = "Baselines/DPVO/DPViewer"}
+install = {cmd = "pip install .", cwd = "Baselines/DPVO", depends-on = ["download-models-and-data", "get_eigen", "build_pangolin", "install_DPViewer"]}
+execute = {cmd = 'python vslamlab_dpvo_mono.py' ,cwd = 'Baselines/DPVO'}
+
+[feature.dpvo.dependencies]
 pytorch-gpu = "*"
 cuda-version = "12.6.*"
 cuda-compiler = "*"
@@ -125,103 +175,59 @@ libcufft-dev = "*"
 libcurand-dev = "*"
 libcusolver-dev = "*"
 
-pip = ">=24.2,<25"
+# torchvision = "*"
 python="3.11.*"
-compilers = ">=1.7.0,<1.8.0"
-make="=4.2.1"
-cmake = ">=3.30.3,<4"
-tqdm = ">=4.66.5,<5"
-open3d = ">=0.18.0,<0.19"
-scipy = ">=1.14.1,<2"
-opencv = ">=4.10.0,<5"
-suitesparse = ">=7.8.2,<8"
-matplotlib = ">=3.9.2,<4"
-pyyaml = ">=6.0.2,<7"
-huggingface_hub="*"
-torch-scatter =">=2.1.1,<2.2"
-# droidslam end
-
-
-########################################################################################################################
-########################################################################################################################
-# mast3rslam begin
-[feature.mast3rslam]
-platforms = ["linux-64"]
-channels = ["https://fast.prefix.dev/conda-forge", "pytorch"]
-
-[feature.mast3rslam.system-requirements]
-cuda = "12.0"
-
-[feature.mast3rslam.tasks]
-git-clone = {cmd = "git-clone.sh VSLAM-LAB MASt3R-SLAM Baselines"}
-download-weights = {cmd = "./vslamlab_mast3rslam_download_weights.sh", cwd = "Baselines/MASt3R-SLAM"}
-install = {cmd = "pip install -e thirdparty/mast3r && pip install -e thirdparty/in3d && pip install --no-build-isolation -e .", cwd = "Baselines/MASt3R-SLAM", depends-on = ["download-weights"]}
-execute = {cmd = 'python vslamlab_mast3rslam_mono.py',  cwd = 'Baselines/MASt3R-SLAM'}
-
-[feature.mast3rslam.dependencies]
-cuda = ">=12.4.0"
+pybind11="*"
+libnvjitlink = "*" # 12.1.105
 pip = "*"
-python="3.11.*"
-pytorch = {build = "py3.11_cuda12.4_cudnn9.1.0_0", channel = "pytorch"}      
-pytorch-cuda = {build = "hc786d27_7", channel = "pytorch"}
-torchvision = {build = "py311_cu124", channel = "pytorch"} 
-torchaudio = {build = "py311_cu124", channel = "pytorch"}  
-# mast3rslam end
-
-########################################################################################################################
-########################################################################################################################
-# dpvo begin
-[feature.dpvo]
-channels = ["pyg", "pytorch", "nvidia/label/cuda-12.1.0", "conda-forge", "main", "r", "msys2"]
-platforms = ["linux-64"]
-
-[feature.dpvo.system-requirements]
-cuda = "12.0"
-
-[feature.dpvo.tasks]
-git-clone = {cmd = "git-clone.sh VSLAM-LAB DPVO Baselines"}
-download-models-and-data = {cmd = "./download_models_and_data.sh", cwd = "Baselines/DPVO"}
-get_eigen = {cmd = "wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip && unzip eigen-3.4.0.zip -d thirdparty", cwd = "Baselines/DPVO"}
-build_pangolin = {cmd = "mkdir -p build && cd build && cmake .. && make -j12", cwd = "Baselines/DPVO/Pangolin"}
-install_DPViewer = {cmd = "pip install .", cwd = "Baselines/DPVO/DPViewer"}
-install = {cmd = "pip install .", cwd = "Baselines/DPVO", depends-on = ["download-models-and-data", "get_eigen", "build_pangolin", "install_DPViewer"]}
-execute = {cmd = 'python vslamlab_dpvo_mono.py' ,cwd = 'Baselines/DPVO'}
-
-[feature.dpvo.dependencies]
-libnvjitlink = "=12.1.105"
-pip = "*"
-cuda = "12.1.*"
-cuda-toolkit = "12.1.*"
-python = "*"
-pytorch = "2.3.1.*"
-pytorch-scatter = "2.1.2.*"
-pytorch-cuda = "12.1.*"
-torchvision = "0.18.*"
+# cuda = "12.1.*"
+# cuda-toolkit = "12.1.*"
+# python = "*"
+# pytorch-gpu = ""
+pytorch_scatter = "*"
+# pytorch-cuda = "12.1.*"
+torchvision = "*"
 numba = "*"
-compilers="=1.6.0"
+compilers="*" # =1.6.0
 libxkbcommon="*"
 xorg-xorgproto="*"
 libgl-devel = "*"
 libegl-devel = "*"
 libglvnd-devel = "*"
 libopengl-devel = "*"
-cmake = "*"
+cmake = "<4"
 glew = "*"
 wayland = "*"
 eigen = "*"
 pkg-config = "*"
 
-[feature.dpvo.pypi-dependencies]
 tensorboard = "*"
 tqdm = "*"
 einops = "*"
-pypose = "*"
 kornia = "*"
 numpy = "*"
 plyfile = "*"
 evo = "*"
-opencv-python = "*"
+opencv= "*"
 yacs = "*"
+
+pangolin = {version="=2024.07.03", build="h3c9d71d_0", channel="fontan"}
+nvtx-c= "*"
+cuda-nvtx= "*"
+
+[feature.dpvo.pypi-dependencies]
+pypose = "*"
+
+# tensorboard = "*"
+# tqdm = "*"
+# einops = "*"
+# pypose = "*"
+# kornia = "*"
+# numpy = "*"
+# plyfile = "*"
+# evo = "*"
+# opencv-python = "*"
+# yacs = "*"
 # dpvo end
 
 ########################################################################################################################
@@ -306,230 +312,6 @@ ruff = ">=0.8.0 ,<0.9"
 
 ########################################################################################################################
 ########################################################################################################################
-# # pyslam begin
-# [feature.pyslam]
-# channels = ["conda-forge"]
-
-# platforms = ["linux-64"]
-
-# [feature.pyslam.system-requirements]
-# cuda = "12"
-
-# [feature.pyslam.tasks]
-# git-clone = "git-clone.sh VSLAM-LAB pyslam Baselines"
-# install-git-modules = {cmd = "./install_git_modules.sh ", cwd = "Baselines/pyslam"}
-# install-cpp = {cmd = "./install_cpp.sh ", cwd = "Baselines/pyslam"}
-# install-thirdparty = {cmd = "./install_thirdparty.sh", cwd = "Baselines/pyslam"}
-# install-megengine = {cmd = "./install_megengine.sh", cwd = "Baselines/pyslam"}
-
-# execute = {cmd = "./main_slam.py", cwd = "Baselines/pyslam"}
-
-# #install = {cmd = "./build.sh", cwd = "Baselines/ORB_SLAM2"}
-# #execute_mono = {cmd = "./bin/mono",  cwd = "Baselines/ORB_SLAM2"}
-# #execute_rgbd = {cmd = "./bin/rgbd",  cwd = "Baselines/ORB_SLAM2"}
-
-# [feature.pyslam.dependencies]
-# absl-py = ">=2.2.0,<3"
-# astor = ">=0.8.1,<0.9"
-# cycler = ">=0.12.1,<0.13"
-# decorator = ">=5.2.1,<6"
-# gast = ">=0.6.0,<0.7"
-# google-pasta = ">=0.2.0,<0.3"
-# grpcio = ">=1.67.1,<2"
-# h5py = ">=3.12.1,<4"
-# imageio = ">=2.37.0,<3"
-# kornia = ">=0.8.0,<0.9"
-# keras = ">=3.9.0,<4"
-# kiwisolver = ">=1.4.8,<2"
-# markdown = ">=3.6,<4"
-# matplotlib = ">=3.10.1,<4"
-# networkx = ">=3.4.2,<4"
-# ordered-set = ">=4.1.0,<5"
-# pillow = ">=11.1.0,<12"
-# protobuf = ">=5.28.3,<6"
-# psutil = ">=7.0.0,<8"
-# pybind11 = ">=2.13.6,<3"
-# eigen = ">=3.4.0,<4"
-# pygame = ">=2.6.1,<3"
-# compilers = ">=1.9.0,<2"
-# cmake = ">=3.31.6,<4"
-# pip = ">=25.0.1,<26"
-# pyopengl = ">=3.1.7,<4"
-# pyopenssl = ">=25.0.0,<26"
-# pyparsing = ">=3.2.2,<4"
-# python-dateutil = ">=2.9.0.post0,<3"
-# pyyaml = ">=6.0.2,<7"
-# scipy = ">=1.15.2,<2"
-# scikit-image = ">=0.25.2,<0.26"
-# seaborn = ">=0.13.2,<0.14"
-# six = ">=1.17.0,<2"
-# sklearn-pandas = ">=2.2.0,<3"
-# tensorflow = ">=2.18.0,<3"
-# termcolor = ">=2.5.0,<3"
-# tqdm = ">=4.67.1,<5"
-# werkzeug = ">=3.1.3,<4"
-# wrapt = ">=1.17.2,<2"
-# yacs = ">=0.1.8,<0.2"
-# opencv = ">=4.10.0,<5"
-# wget = ">=1.21.4,<2"
-# doxygen = ">=1.13.2,<2"
-# glew = ">=2.1.0,<3"
-# pkg-config = ">=0.29.2,<0.30"
-# suitesparse = ">=7.10.1,<8"
-# zlib = ">=1.3.1,<2"
-# bzip2 = ">=1.0.8,<2"
-# rsync = ">=3.4.1,<4"
-# readline = ">=8.2,<9"
-# libboost-devel = ">=1.87.0,<2"
-# flann = ">=1.9.2,<2"
-# catch2 = ">=3.8.0,<4"
-# gdown = ">=5.2.0,<6"
-# x265 = ">=3.5,<4"
-# libheif = ">=1.19.6,<2"
-# gtk2 = ">=2.24.33,<3"
-# hdf5 = ">=1.14.4,<2"
-# tmux = ">=3.5,<4"
-# nano = ">=8.3,<9"
-# setuptools = ">=75.8.2,<76"
-# wheel = ">=0.45.1,<0.46"
-# pyqt = ">=5.15.9,<6"
-# pytorch-gpu = ">=2.6.0,<3"
-# torchvision = ">=0.21.0,<0.22"
-# ujson = ">=5.10.0,<6"
-# tensorflow-hub = ">=0.16.1,<0.17"
-# einops = ">=0.8.1,<0.9"
-# pyflann = ">=1.9.2,<2"
-# faiss = ">=1.9.0,<2"
-# trimesh = ">=4.6.5,<5"
-# jax = ">=0.5.2,<0.6"
-# munch = ">=4.0.0,<5"
-# wandb = ">=0.19.8,<0.20"
-# plyfile = ">=1.1,<2"
-# torchmetrics = ">=1.7.0,<2"
-# imgviz = ">=1.7.5,<2"
-# pyglm = ">=2.8.0,<3"
-# lpips = ">=0.1.4,<0.2"
-# rich = ">=13.9.4,<14"
-# ruff = ">=0.11.2,<0.12"
-# gradio = ">=5.16.1,<6"
-# pytorch3d = ">=0.7.7,<0.8"
-# # libgl-devel = ">=1.7.0,<2"
-# # libopengl-devel = ">=1.7.0,<2"
-# # libegl-devel = ">=1.7.0,<2"
-# # libglx-devel = ">=1.7.0,<2"
-# cython = "0.29.*"
-# python = "3.12.*"
-# cuda-compiler = ">=12.8.1,<13"
-# metis = ">=5.1.0,<6"
-# rerun-sdk = ">=0.22.1,<0.23"
-# rattler-build = ">=0.39.0,<0.40"
-# fast-pytorch-kmeans = ">=0.2.2,<0.3"
-# timm = ">=1.0.15,<2"
-# pillow-heif = ">=0.21.0,<0.22"
-# evo="*"
-# # libgl-devel = "*"
-# # libegl-devel = "*"
-# # libglvnd-devel = "*"
-# # libopengl-devel = "*"
-# xorg-libxext ="*"
-# xorg-libx11 ="*"
-# xorg-libxfixes="*"
-# xorg-libxrender="*"
-# xorg-libice="*"
-# xorg-libsm="*"
-# xorg-libxdmcp="*"
-# xorg-libxau="*"
-# mesa-libegl-devel-cos7-x86_64 ="*"
-# mesa-libgl-devel-cos7-x86_64 ="*"
-# mesa-dri-drivers-cos7-x86_64 ="*"
-# libglvnd-egl-cos7-x86_64 ="*"
-# libglvnd-devel-cos7-x86_64 ="*"
-# libselinux-cos7-x86_64 ="*"
-# libxdamage-cos7-x86_64 ="*"
-# libxxf86vm-cos7-x86_64 ="*"
-# libxfixes-cos7-x86_64 ="*"
-# libxext-cos7-x86_64 ="*"
-# libxau-cos7-x86_64 ="*"
-# libxcb-cos7-x86_64 ="*"
-
-# [feature.pyslam.pypi-dependencies]
-# tensorrt ="*"
-# fast-pytorch-kmeans = "*"
-# pillow_heif = ">=0.17.0"
-
-# [tool.pixi.pip]
-# packages = ["megengine -f https://megengine.org.cn/whl/mge.html"]
-# # pyslam end
-
-########################################################################################################################
-########################################################################################################################
-# # magicslam begin
-# [feature.magicslam]
-
-# channels = ["https://fast.prefix.dev/conda-forge"]
-
-# platforms = ["linux-64"]
-
-# [feature.magicslam.system-requirements]
-# cuda = "12.6"
-
-# [feature.magicslam.tasks]
-# git-clone = {cmd = "git-clone.sh VSLAM-LAB MAGiC-SLAM Baselines"}
-# install = {cmd = "pip install -r requirements.txt", cwd = "Baselines/MAGiC-SLAM"}
-# install_sdk = {cmd = "pip install rerun-sdk", cwd = "Baselines/MAGiC-SLAM"}
-# execute = {cmd = "python run_slam.py configs/ReplicaMultiagent/office_0.yaml --input_path ReplicaMultiagent/Office-0", cwd = "Baselines/MAGiC-SLAM"}
-# install_simple_knn = {cmd = "pip install -e .", cwd = "Baselines/MAGiC-SLAM/simple-knn"}
-# install_gaussian_rasterizer = {cmd = "pip install -e .", cwd = "Baselines/MAGiC-SLAM/gaussian_rasterizer"}
-
-# [feature.magicslam.dependencies]
-# pytorch-gpu = "*"
-# cuda-version = "12.6.*"
-# cuda-compiler = "*"
-# cuda-cudart-dev = "*"
-# cuda-crt = "*"
-# cudnn = "*"
-# libcusparse-dev = "*"
-# cuda-driver-dev = "*"
-# cuda-nvcc = "*"
-# cuda-nvrtc-dev = "*"
-# cuda-nvtx-dev = "*"
-# cuda-nvml-dev = "*"
-# cuda-profiler-api = "*"
-# cusparselt = "*"
-# libcublas-dev = "*"
-# libcudss-dev = "*"
-# libcufile-dev = "*"
-# libcufft-dev = "*"
-# libcurand-dev = "*"
-# libcusolver-dev = "*"
-
-# python = "*"
-# # cuda = "12.*"
-# torchvision = "0.20.1"
-
-# pip = "*"
-# open3d="*"
-# wandb= "*"
-# trimesh= "*"
-# torchmetrics= "*"
-# tqdm= "*"
-# imageio= "*"
-# opencv= "*"
-# plyfile= "*"
-# transformers= "*"
-# matplotlib= "*"
-# faiss= "*"
-# joblib= "*"
-
-# [feature.magicslam.pypi-dependencies]
-# pytorch_msssim= "*"
-# graphslam= "*"
-# roma= "*"
-
-# # magicslam end
-
-########################################################################################################################
-########################################################################################################################
 # # droidcalib begin
 # [feature.droidcalib]
 # channels = ["nvidia/label/cuda-12.0.0","https://fast.prefix.dev/conda-forge"]
@@ -574,155 +356,155 @@ ruff = ">=0.8.0 ,<0.9"
 
 ########################################################################################################################
 ########################################################################################################################
-# # colmap begin
-# [feature.colmap]
-# channels = ["https://fast.prefix.dev/conda-forge", "nvidia"]
-# platforms = ["linux-64"]
+# colmap begin
+[feature.colmap]
+channels = ["https://fast.prefix.dev/conda-forge", "nvidia"]
+platforms = ["linux-64"]
 
-# [feature.colmap.tasks]
-# git-clone = {cmd = "git-clone.sh alejandrofontan colmap Baselines" }
-# setup = {cmd = "pixi run -e vslamlab python Baselines/colmap/colmap_setup.py"}
-# install = {cmd = "./Baselines/colmap/build.sh", depends-on = ["git-clone", "setup"]}
-# execute = {cmd = './Baselines/colmap/colmap_reconstruction.sh'}
+[feature.colmap.tasks]
+git-clone = {cmd = "git-clone.sh alejandrofontan colmap Baselines" }
+setup = {cmd = "pixi run -e vslamlab python Baselines/colmap/colmap_setup.py"}
+install = {cmd = "./Baselines/colmap/build.sh", depends-on = ["git-clone", "setup"]}
+execute = {cmd = './Baselines/colmap/colmap_reconstruction.sh'}
 
-# colmap = {cmd = "./Baselines/colmap/bin/colmap"}
-# glomap = {cmd = "./Baselines/glomap/bin/glomap"}
+colmap = {cmd = "./Baselines/colmap/bin/colmap"}
+glomap = {cmd = "./Baselines/glomap/bin/glomap"}
 
-# [feature.colmap.dependencies]
-# mesa-libegl-devel-cos7-x86_64 ="*"
-# mesa-libgl-devel-cos7-x86_64 ="*"
-# mesa-dri-drivers-cos7-x86_64 ="*"
-# libglvnd-egl-cos7-x86_64 ="*"
-# libglvnd-devel-cos7-x86_64 ="*"
-# libselinux-cos7-x86_64 ="*"
-# libxdamage-cos7-x86_64 ="*"
-# libxxf86vm-cos7-x86_64 ="*"
-# libxfixes-cos7-x86_64 ="*"
-# libxext-cos7-x86_64 ="*"
-# libxau-cos7-x86_64 ="*"
-# libxcb-cos7-x86_64 ="*"
-# xorg-libxext ="*"
-# xorg-libx11 ="*"
-# xorg-libxfixes="*"
-# xorg-libxrender="*"
-# xorg-libice="*"
-# xorg-libsm="*"
-# xorg-libxdmcp="*"
-# xorg-libxau="*"
-# cxx-compiler = ">=1.8.0,<1.9"
-# c-compiler = ">=1.8.0,<1.9"
-# ninja = ">=1.12.1,<1.13"
-# cmake = ">=3.28.0,<3.29"
-# pkg-config = ">=0.29.2,<0.30"
-# make = ">=4.4.1,<4.5"
-# llvm-openmp = ">=19.1.4,<19.2"
-# libgomp = "*"
-# libxcb = "*"
-# libglu = "*"
-# libblas = "*"
-# libcblas = "*"
-# libboost-devel = "*"
-# suitesparse = ">=5.10.1,<5.11"
-# eigen = ">=3.4.0,<3.5"
-# freeimage = ">=3.18.0,<3.19"
-# glog = "=0.6.0"
-# gflags = ">=2.2.2,<2.3"
-# glew = ">=2.1.0,<2.2"
-# cgal-cpp = ">=6.0.1,<6.1"
-# ceres-solver = ">=2.2.0,<2.3"
-# qt-main = ">=5.15.15,<5.16"
-# git = ">=2.47.1,<2.48"
-# flann = ">=1.9.2,<1.10"
-# sqlite = ">=3.47.0,<3.48"
-# vlfeat = ">=0.9.21,<0.10"
-# gmp = ">=6.3.0,<6.4"
-# lz4-c = ">=1.9.4,<1.10"
-# metis = ">=5.1.0,<5.2"
-# libcurand-dev = ">=10.3.7.77,<10.4"
-# cuda-nvcc = ">=12.6.85,<12.7"
-# python = ">=3.13.0,<3.14"
-# yq = ">=3.4.3,<3.5"
-# numpy = ">=2.1.3,<2.2"
-# scipy = ">=1.14.1,<1.15"
-# pyyaml = ">=6.0.2,<6.1"
-# matplotlib = ">=3.9.2,<3.10"
-# tbb-devel="*"
-# # colmap end
+[feature.colmap.dependencies]
+mesa-libegl-devel-cos7-x86_64 ="*"
+mesa-libgl-devel-cos7-x86_64 ="*"
+mesa-dri-drivers-cos7-x86_64 ="*"
+libglvnd-egl-cos7-x86_64 ="*"
+libglvnd-devel-cos7-x86_64 ="*"
+libselinux-cos7-x86_64 ="*"
+libxdamage-cos7-x86_64 ="*"
+libxxf86vm-cos7-x86_64 ="*"
+libxfixes-cos7-x86_64 ="*"
+libxext-cos7-x86_64 ="*"
+libxau-cos7-x86_64 ="*"
+libxcb-cos7-x86_64 ="*"
+xorg-libxext ="*"
+xorg-libx11 ="*"
+xorg-libxfixes="*"
+xorg-libxrender="*"
+xorg-libice="*"
+xorg-libsm="*"
+xorg-libxdmcp="*"
+xorg-libxau="*"
+cxx-compiler = ">=1.8.0,<1.9"
+c-compiler = ">=1.8.0,<1.9"
+ninja = ">=1.12.1,<1.13"
+cmake = ">=3.28.0,<3.29"
+pkg-config = ">=0.29.2,<0.30"
+make = ">=4.4.1,<4.5"
+llvm-openmp = ">=19.1.4,<19.2"
+libgomp = "*"
+libxcb = "*"
+libglu = "*"
+libblas = "*"
+libcblas = "*"
+libboost-devel = "*"
+suitesparse = ">=5.10.1,<5.11"
+eigen = ">=3.4.0,<3.5"
+freeimage = ">=3.18.0,<3.19"
+glog = "=0.6.0"
+gflags = ">=2.2.2,<2.3"
+glew = ">=2.1.0,<2.2"
+cgal-cpp = ">=6.0.1,<6.1"
+ceres-solver = ">=2.2.0,<2.3"
+qt-main = ">=5.15.15,<5.16"
+git = ">=2.47.1,<2.48"
+flann = ">=1.9.2,<1.10"
+sqlite = ">=3.47.0,<3.48"
+vlfeat = ">=0.9.21,<0.10"
+gmp = ">=6.3.0,<6.4"
+lz4-c = ">=1.9.4,<1.10"
+metis = ">=5.1.0,<5.2"
+libcurand-dev = ">=10.3.7.77,<10.4"
+cuda-nvcc = ">=12.6.85,<12.7"
+python = ">=3.13.0,<3.14"
+yq = ">=3.4.3,<3.5"
+numpy = ">=2.1.3,<2.2"
+scipy = ">=1.14.1,<1.15"
+pyyaml = ">=6.0.2,<6.1"
+matplotlib = ">=3.9.2,<3.10"
+tbb-devel="*"
+# colmap end
 
 ########################################################################################################################
 ########################################################################################################################
-# # glomap begin
-# [feature.glomap]
-# channels = ["https://fast.prefix.dev/conda-forge"]
-# platforms = ["linux-64"]
+# glomap begin
+[feature.glomap]
+channels = ["https://fast.prefix.dev/conda-forge"]
+platforms = ["linux-64"]
 
-# [feature.glomap.dependencies]
-# mesa-libegl-devel-cos7-x86_64 ="*"
-# mesa-libgl-devel-cos7-x86_64 ="*"
-# mesa-dri-drivers-cos7-x86_64 ="*"
-# libglvnd-egl-cos7-x86_64 ="*"
-# libglvnd-devel-cos7-x86_64 ="*"
-# libselinux-cos7-x86_64 ="*"
-# libxdamage-cos7-x86_64 ="*"
-# libxxf86vm-cos7-x86_64 ="*"
-# libxfixes-cos7-x86_64 ="*"
-# libxext-cos7-x86_64 ="*"
-# libxau-cos7-x86_64 ="*"
-# libxcb-cos7-x86_64 ="*"
-# xorg-libxext ="*"
-# xorg-libx11 ="*"
-# xorg-libxfixes="*"
-# xorg-libxrender="*"
-# xorg-libice="*"
-# xorg-libsm="*"
-# xorg-libxdmcp="*"
-# xorg-libxau="*"
-# cxx-compiler = ">=1.8.0,<1.9"
-# c-compiler = ">=1.8.0,<1.9"
-# ninja = ">=1.12.1,<1.13"
-# cmake = ">=3.28.0,<3.29"
-# pkg-config = ">=0.29.2,<0.30"
-# make = ">=4.4.1,<4.5"
-# llvm-openmp = ">=19.1.4,<19.2"
-# libgomp = "*"
-# libxcb = "*"
-# libglu = "*"
-# libblas = "*"
-# libcblas = "*"
-# libboost-devel = "*"
-# suitesparse = ">=5.10.1,<5.11"
-# eigen = ">=3.4.0,<3.5"
-# freeimage = ">=3.18.0,<3.19"
-# glog = "=0.6.0"
-# gflags = ">=2.2.2,<2.3"
-# glew = ">=2.1.0,<2.2"
-# cgal-cpp = ">=6.0.1,<6.1"
-# ceres-solver = ">=2.2.0,<2.3"
-# qt-main = ">=5.15.15,<5.16"
-# git = ">=2.47.1,<2.48"
-# flann = ">=1.9.2,<1.10"
-# sqlite = ">=3.47.0,<3.48"
-# vlfeat = ">=0.9.21,<0.10"
-# gmp = ">=6.3.0,<6.4"
-# lz4-c = ">=1.9.4,<1.10"
-# metis = ">=5.1.0,<5.2"
-# libcurand-dev = ">=10.3.7.77,<10.4"
-# cuda-nvcc = ">=12.6.85,<12.7"
-# python = ">=3.13.0,<3.14"
-# yq = ">=3.4.3,<3.5"
-# numpy = ">=2.1.3,<2.2"
-# scipy = ">=1.14.1,<1.15"
-# pyyaml = ">=6.0.2,<6.1"
-# matplotlib = ">=3.9.2,<3.10"
-# tbb-devel="*"
+[feature.glomap.dependencies]
+mesa-libegl-devel-cos7-x86_64 ="*"
+mesa-libgl-devel-cos7-x86_64 ="*"
+mesa-dri-drivers-cos7-x86_64 ="*"
+libglvnd-egl-cos7-x86_64 ="*"
+libglvnd-devel-cos7-x86_64 ="*"
+libselinux-cos7-x86_64 ="*"
+libxdamage-cos7-x86_64 ="*"
+libxxf86vm-cos7-x86_64 ="*"
+libxfixes-cos7-x86_64 ="*"
+libxext-cos7-x86_64 ="*"
+libxau-cos7-x86_64 ="*"
+libxcb-cos7-x86_64 ="*"
+xorg-libxext ="*"
+xorg-libx11 ="*"
+xorg-libxfixes="*"
+xorg-libxrender="*"
+xorg-libice="*"
+xorg-libsm="*"
+xorg-libxdmcp="*"
+xorg-libxau="*"
+cxx-compiler = ">=1.8.0,<1.9"
+c-compiler = ">=1.8.0,<1.9"
+ninja = ">=1.12.1,<1.13"
+cmake = ">=3.28.0,<3.29"
+pkg-config = ">=0.29.2,<0.30"
+make = ">=4.4.1,<4.5"
+llvm-openmp = ">=19.1.4,<19.2"
+libgomp = "*"
+libxcb = "*"
+libglu = "*"
+libblas = "*"
+libcblas = "*"
+libboost-devel = "*"
+suitesparse = ">=5.10.1,<5.11"
+eigen = ">=3.4.0,<3.5"
+freeimage = ">=3.18.0,<3.19"
+glog = "=0.6.0"
+gflags = ">=2.2.2,<2.3"
+glew = ">=2.1.0,<2.2"
+cgal-cpp = ">=6.0.1,<6.1"
+ceres-solver = ">=2.2.0,<2.3"
+qt-main = ">=5.15.15,<5.16"
+git = ">=2.47.1,<2.48"
+flann = ">=1.9.2,<1.10"
+sqlite = ">=3.47.0,<3.48"
+vlfeat = ">=0.9.21,<0.10"
+gmp = ">=6.3.0,<6.4"
+lz4-c = ">=1.9.4,<1.10"
+metis = ">=5.1.0,<5.2"
+libcurand-dev = ">=10.3.7.77,<10.4"
+cuda-nvcc = ">=12.6.85,<12.7"
+python = ">=3.13.0,<3.14"
+yq = ">=3.4.3,<3.5"
+numpy = ">=2.1.3,<2.2"
+scipy = ">=1.14.1,<1.15"
+pyyaml = ">=6.0.2,<6.1"
+matplotlib = ">=3.9.2,<3.10"
+tbb-devel="*"
 
-# [feature.glomap.tasks]
-# git-clone = {cmd = "git-clone.sh alejandrofontan glomap Baselines"}
-# build-colmap = {cmd = "pixi run -e colmap install -v"}
-# install = {cmd = "./Baselines/glomap/build.sh", depends-on = ["build-colmap"]}
-# execute = {cmd = './Baselines/glomap/glomap_reconstruction.sh'}
-# rep_error = {cmd = 'pixi run -e colmap ./reprojection_error.sh'}
-# # glomap end
+[feature.glomap.tasks]
+git-clone = {cmd = "git-clone.sh alejandrofontan glomap Baselines"}
+build-colmap = {cmd = "pixi run -e colmap install -v"}
+install = {cmd = "./Baselines/glomap/build.sh", depends-on = ["build-colmap"]}
+execute = {cmd = './Baselines/glomap/glomap_reconstruction.sh'}
+rep_error = {cmd = 'pixi run -e colmap ./reprojection_error.sh'}
+# glomap end
 
 ########################################################################################################################
 ########################################################################################################################
@@ -1092,3 +874,377 @@ ruff = ">=0.8.0 ,<0.9"
 # [feature.kalibr.pypi-dependencies]
 # igraph="*"
 # kalibr end
+
+########################################################################################################################
+########################################################################################################################
+################################################ DEVELOPMENT PACKAGES ##################################################
+########################################################################################################################
+########################################################################################################################
+
+########################################################################################################################
+########################################################################################################################
+# droidslam-dev begin
+# [feature.droidslam-dev]
+# channels = ["https://fast.prefix.dev/conda-forge", "fontan"]
+# platforms = ["linux-64"]
+
+# [feature.droidslam-dev.system-requirements]
+# cuda = "12.0"
+
+# [feature.droidslam-dev.tasks]
+# git-clone = {cmd = "git-clone.sh VSLAM-LAB DROID-SLAM Baselines"}
+# install = {cmd = "python setup.py install", cwd = "Baselines/DROID-SLAM", depends-on = ["git-clone"]}
+# execute_mono = {cmd = 'python vslamlab_droidslam_mono.py',  cwd = 'Baselines/DROID-SLAM'}
+# execute_rgbd = {cmd = 'python vslamlab_droidslam_rgbd.py',  cwd = 'Baselines/DROID-SLAM'}
+
+# [feature.droidslam-dev.dependencies]
+# python="3.11.*"
+# lietorch = {version = "*", channel = "fontan"}  
+
+# cuda-version = "12.6.*"
+# pytorch-gpu = "*"
+# cuda-compiler = "*"
+# cuda-cudart-dev = "*"
+# cuda-crt = "*"
+# cudnn = "*"
+# libcusparse-dev = "*"
+# cuda-driver-dev = "*"
+# cuda-nvcc = "*"
+# cuda-nvrtc-dev = "*"
+# cuda-nvtx-dev = "*"
+# cuda-nvml-dev = "*"
+# cuda-profiler-api = "*"
+# cusparselt = "*"
+# libcublas-dev = "*"
+# libcudss-dev = "*"
+# libcufile-dev = "*"
+# libcufft-dev = "*"
+# libcurand-dev = "*"
+# libcusolver-dev = "*"
+
+# pip = ">=24.2,<25"
+# compilers = ">=1.7.0,<1.8.0"
+# make="=4.2.1"
+# cmake = ">=3.30.3,<4"
+# tqdm = ">=4.66.5,<5"
+# open3d = ">=0.18.0,<0.19"
+# scipy = ">=1.14.1,<2"
+# opencv = ">=4.10.0,<5"
+# suitesparse = ">=7.8.2,<8"
+# matplotlib = ">=3.9.2,<4"
+# pyyaml = ">=6.0.2,<7"
+# huggingface_hub="*"
+# torch-scatter =">=2.1.1,<2.2"
+# droidslam-dev end
+
+# ########################################################################################################################
+# ########################################################################################################################
+# mast3rslam-dev begin
+[feature.mast3rslam-dev]
+platforms = ["linux-64"]
+channels = ["https://fast.prefix.dev/conda-forge","fontan"]
+
+[feature.mast3rslam-dev.system-requirements]
+cuda = "12.0"
+
+[feature.mast3rslam-dev.tasks]
+git-clone = {cmd = "git-clone.sh VSLAM-LAB MASt3R-SLAM Baselines"}
+install = {cmd = "pip install -e thirdparty/mast3r && pip install -e thirdparty/in3d && pip install --no-build-isolation -e .", cwd = "Baselines/MASt3R-SLAM"}
+execute = {cmd = 'python vslamlab_mast3rslam_mono.py',  cwd = 'Baselines/MASt3R-SLAM'}
+
+[feature.mast3rslam-dev.dependencies]
+mast3rslam = {version = "*", channel = "fontan"}
+lietorch = {version = "*", channel = "fontan"}  
+pyglfw = {version = "=2.9.0", channel = "fontan"}  
+moderngl-window= {version = "=2.4.6", channel = "fontan"}
+faiss-cpu= {version = "=1.11.0", channel = "fontan"}
+roma= {version = "*", channel = "fontan"}
+
+cuda-version = "12.6.*"
+python="3.11.*"
+
+pytorch-gpu = "*"
+cuda-compiler = "*"
+cuda-cudart-dev = "*"
+cuda-crt = "*"
+cudnn = "*"
+libcusparse-dev = "*"
+cuda-driver-dev = "*"
+cuda-nvcc = "*"
+cuda-nvrtc-dev = "*"
+cuda-nvtx-dev = "*"
+cuda-nvml-dev = "*"
+cuda-profiler-api = "*"
+cusparselt = "*"
+libcublas-dev = "*"
+libcudss-dev = "*"
+libcufile-dev = "*"
+libcufft-dev = "*"
+libcurand-dev = "*"
+libcusolver-dev = "*"
+
+compilers = "*"
+make="*"
+cmake = "*"
+
+torchvision = "*"
+natsort= "*"
+tqdm= "*"
+opencv= "*"
+einops= "*"
+huggingface_hub = "*"
+plyfile = "*"
+pillow = "*"
+
+pip = "*"
+numpy = "<2"
+librealsense= "*"
+evo= "*"
+pykdtree="*"
+torchcodec="*"
+pyglm= "*"
+msgpack-python="*"
+scikit-learn = "*"
+gradio = "*"
+matplotlib= "*"
+scipy= "*"
+trimesh= "*"
+tensorboard= "*"
+pyglet= "*"
+eigen = "*"
+pyaml = "*"
+safetensors = "*"
+moderngl= "*"
+faiss= "*"
+
+# mast3rslam-dev end
+
+########################################################################################################################
+########################################################################################################################
+###################################################### ON GOING WORK  ##################################################
+########################################################################################################################
+########################################################################################################################
+
+########################################################################################################################
+########################################################################################################################
+# # pyslam begin
+# [feature.pyslam]
+# channels = ["conda-forge"]
+
+# platforms = ["linux-64"]
+
+# [feature.pyslam.system-requirements]
+# cuda = "12"
+
+# [feature.pyslam.tasks]
+# git-clone = "git-clone.sh VSLAM-LAB pyslam Baselines"
+# install-git-modules = {cmd = "./install_git_modules.sh ", cwd = "Baselines/pyslam"}
+# install-cpp = {cmd = "./install_cpp.sh ", cwd = "Baselines/pyslam"}
+# install-thirdparty = {cmd = "./install_thirdparty.sh", cwd = "Baselines/pyslam"}
+# install-megengine = {cmd = "./install_megengine.sh", cwd = "Baselines/pyslam"}
+
+# execute = {cmd = "./main_slam.py", cwd = "Baselines/pyslam"}
+
+# #install = {cmd = "./build.sh", cwd = "Baselines/ORB_SLAM2"}
+# #execute_mono = {cmd = "./bin/mono",  cwd = "Baselines/ORB_SLAM2"}
+# #execute_rgbd = {cmd = "./bin/rgbd",  cwd = "Baselines/ORB_SLAM2"}
+
+# [feature.pyslam.dependencies]
+# absl-py = ">=2.2.0,<3"
+# astor = ">=0.8.1,<0.9"
+# cycler = ">=0.12.1,<0.13"
+# decorator = ">=5.2.1,<6"
+# gast = ">=0.6.0,<0.7"
+# google-pasta = ">=0.2.0,<0.3"
+# grpcio = ">=1.67.1,<2"
+# h5py = ">=3.12.1,<4"
+# imageio = ">=2.37.0,<3"
+# kornia = ">=0.8.0,<0.9"
+# keras = ">=3.9.0,<4"
+# kiwisolver = ">=1.4.8,<2"
+# markdown = ">=3.6,<4"
+# matplotlib = ">=3.10.1,<4"
+# networkx = ">=3.4.2,<4"
+# ordered-set = ">=4.1.0,<5"
+# pillow = ">=11.1.0,<12"
+# protobuf = ">=5.28.3,<6"
+# psutil = ">=7.0.0,<8"
+# pybind11 = ">=2.13.6,<3"
+# eigen = ">=3.4.0,<4"
+# pygame = ">=2.6.1,<3"
+# compilers = ">=1.9.0,<2"
+# cmake = ">=3.31.6,<4"
+# pip = ">=25.0.1,<26"
+# pyopengl = ">=3.1.7,<4"
+# pyopenssl = ">=25.0.0,<26"
+# pyparsing = ">=3.2.2,<4"
+# python-dateutil = ">=2.9.0.post0,<3"
+# pyyaml = ">=6.0.2,<7"
+# scipy = ">=1.15.2,<2"
+# scikit-image = ">=0.25.2,<0.26"
+# seaborn = ">=0.13.2,<0.14"
+# six = ">=1.17.0,<2"
+# sklearn-pandas = ">=2.2.0,<3"
+# tensorflow = ">=2.18.0,<3"
+# termcolor = ">=2.5.0,<3"
+# tqdm = ">=4.67.1,<5"
+# werkzeug = ">=3.1.3,<4"
+# wrapt = ">=1.17.2,<2"
+# yacs = ">=0.1.8,<0.2"
+# opencv = ">=4.10.0,<5"
+# wget = ">=1.21.4,<2"
+# doxygen = ">=1.13.2,<2"
+# glew = ">=2.1.0,<3"
+# pkg-config = ">=0.29.2,<0.30"
+# suitesparse = ">=7.10.1,<8"
+# zlib = ">=1.3.1,<2"
+# bzip2 = ">=1.0.8,<2"
+# rsync = ">=3.4.1,<4"
+# readline = ">=8.2,<9"
+# libboost-devel = ">=1.87.0,<2"
+# flann = ">=1.9.2,<2"
+# catch2 = ">=3.8.0,<4"
+# gdown = ">=5.2.0,<6"
+# x265 = ">=3.5,<4"
+# libheif = ">=1.19.6,<2"
+# gtk2 = ">=2.24.33,<3"
+# hdf5 = ">=1.14.4,<2"
+# tmux = ">=3.5,<4"
+# nano = ">=8.3,<9"
+# setuptools = ">=75.8.2,<76"
+# wheel = ">=0.45.1,<0.46"
+# pyqt = ">=5.15.9,<6"
+# pytorch-gpu = ">=2.6.0,<3"
+# torchvision = ">=0.21.0,<0.22"
+# ujson = ">=5.10.0,<6"
+# tensorflow-hub = ">=0.16.1,<0.17"
+# einops = ">=0.8.1,<0.9"
+# pyflann = ">=1.9.2,<2"
+# faiss = ">=1.9.0,<2"
+# trimesh = ">=4.6.5,<5"
+# jax = ">=0.5.2,<0.6"
+# munch = ">=4.0.0,<5"
+# wandb = ">=0.19.8,<0.20"
+# plyfile = ">=1.1,<2"
+# torchmetrics = ">=1.7.0,<2"
+# imgviz = ">=1.7.5,<2"
+# pyglm = ">=2.8.0,<3"
+# lpips = ">=0.1.4,<0.2"
+# rich = ">=13.9.4,<14"
+# ruff = ">=0.11.2,<0.12"
+# gradio = ">=5.16.1,<6"
+# pytorch3d = ">=0.7.7,<0.8"
+# # libgl-devel = ">=1.7.0,<2"
+# # libopengl-devel = ">=1.7.0,<2"
+# # libegl-devel = ">=1.7.0,<2"
+# # libglx-devel = ">=1.7.0,<2"
+# cython = "0.29.*"
+# python = "3.12.*"
+# cuda-compiler = ">=12.8.1,<13"
+# metis = ">=5.1.0,<6"
+# rerun-sdk = ">=0.22.1,<0.23"
+# rattler-build = ">=0.39.0,<0.40"
+# fast-pytorch-kmeans = ">=0.2.2,<0.3"
+# timm = ">=1.0.15,<2"
+# pillow-heif = ">=0.21.0,<0.22"
+# evo="*"
+# # libgl-devel = "*"
+# # libegl-devel = "*"
+# # libglvnd-devel = "*"
+# # libopengl-devel = "*"
+# xorg-libxext ="*"
+# xorg-libx11 ="*"
+# xorg-libxfixes="*"
+# xorg-libxrender="*"
+# xorg-libice="*"
+# xorg-libsm="*"
+# xorg-libxdmcp="*"
+# xorg-libxau="*"
+# mesa-libegl-devel-cos7-x86_64 ="*"
+# mesa-libgl-devel-cos7-x86_64 ="*"
+# mesa-dri-drivers-cos7-x86_64 ="*"
+# libglvnd-egl-cos7-x86_64 ="*"
+# libglvnd-devel-cos7-x86_64 ="*"
+# libselinux-cos7-x86_64 ="*"
+# libxdamage-cos7-x86_64 ="*"
+# libxxf86vm-cos7-x86_64 ="*"
+# libxfixes-cos7-x86_64 ="*"
+# libxext-cos7-x86_64 ="*"
+# libxau-cos7-x86_64 ="*"
+# libxcb-cos7-x86_64 ="*"
+
+# [feature.pyslam.pypi-dependencies]
+# tensorrt ="*"
+# fast-pytorch-kmeans = "*"
+# pillow_heif = ">=0.17.0"
+
+# [tool.pixi.pip]
+# packages = ["megengine -f https://megengine.org.cn/whl/mge.html"]
+# # pyslam end
+
+########################################################################################################################
+########################################################################################################################
+# # magicslam begin
+# [feature.magicslam]
+
+# channels = ["https://fast.prefix.dev/conda-forge"]
+
+# platforms = ["linux-64"]
+
+# [feature.magicslam.system-requirements]
+# cuda = "12.6"
+
+# [feature.magicslam.tasks]
+# git-clone = {cmd = "git-clone.sh VSLAM-LAB MAGiC-SLAM Baselines"}
+# install = {cmd = "pip install -r requirements.txt", cwd = "Baselines/MAGiC-SLAM"}
+# install_sdk = {cmd = "pip install rerun-sdk", cwd = "Baselines/MAGiC-SLAM"}
+# execute = {cmd = "python run_slam.py configs/ReplicaMultiagent/office_0.yaml --input_path ReplicaMultiagent/Office-0", cwd = "Baselines/MAGiC-SLAM"}
+# install_simple_knn = {cmd = "pip install -e .", cwd = "Baselines/MAGiC-SLAM/simple-knn"}
+# install_gaussian_rasterizer = {cmd = "pip install -e .", cwd = "Baselines/MAGiC-SLAM/gaussian_rasterizer"}
+
+# [feature.magicslam.dependencies]
+# pytorch-gpu = "*"
+# cuda-version = "12.6.*"
+# cuda-compiler = "*"
+# cuda-cudart-dev = "*"
+# cuda-crt = "*"
+# cudnn = "*"
+# libcusparse-dev = "*"
+# cuda-driver-dev = "*"
+# cuda-nvcc = "*"
+# cuda-nvrtc-dev = "*"
+# cuda-nvtx-dev = "*"
+# cuda-nvml-dev = "*"
+# cuda-profiler-api = "*"
+# cusparselt = "*"
+# libcublas-dev = "*"
+# libcudss-dev = "*"
+# libcufile-dev = "*"
+# libcufft-dev = "*"
+# libcurand-dev = "*"
+# libcusolver-dev = "*"
+
+# python = "*"
+# # cuda = "12.*"
+# torchvision = "0.20.1"
+
+# pip = "*"
+# open3d="*"
+# wandb= "*"
+# trimesh= "*"
+# torchmetrics= "*"
+# tqdm= "*"
+# imageio= "*"
+# opencv= "*"
+# plyfile= "*"
+# transformers= "*"
+# matplotlib= "*"
+# faiss= "*"
+# joblib= "*"
+
+# [feature.magicslam.pypi-dependencies]
+# pytorch_msssim= "*"
+# graphslam= "*"
+# roma= "*"
+
+# # magicslam end
